@@ -1,0 +1,2 @@
+TOKEN = "6965975961:AAEZml1NDRm-ztMS_sqoilsBGaD0u_vWhtg"
+UID = 9146972
