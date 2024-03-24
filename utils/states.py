@@ -8,7 +8,7 @@ storage = MemoryStorage()
 class create_anc(StatesGroup):
     name = State()
     age = State()
-    sex = State()
+    gender = State()
     connect = State()
     games = State()
     microphone = State()

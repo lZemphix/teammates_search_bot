@@ -1,6 +1,6 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command, StateFilter
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram import Bot
 from database.database import database as db
 from handlers.actions import *
@@ -12,7 +12,7 @@ from keyboards import reply
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-import sqlite3
+
 
 
 router = Router()
@@ -62,27 +62,23 @@ async def incorrect_age(message: Message):
     await message.answer("Введен некорректный возраст! Укажите ваш действительный возраст.")
 
 # Перевод на ввод пола
-@router.message(StateFilter(create_anc.sex))
-async def correct_sex_handler(message: Message, state: FSMContext):
-    await createanc_sex(message, db, message.from_user.id, state)
-
-
+@router.callback_query(StateFilter(create_anc.gender), F.data.in_(["мужской", "женский", "не опреден"]))
+async def correct_gender_handler(callback: CallbackQuery, state: FSMContext):
+    await createanc_gender(callback, db, callback.from_user.id, state)
 
 # Активируется если введен некорректный пол
-@router.message(StateFilter(create_anc.sex))
-async def incorrect_sex(message: Message):
-    await message.answer("Введен некорректный пол!")
+@router.message(StateFilter(create_anc.gender))
+async def incorrect_gender(message: Message):
+    await message.answer("Используйте кнопки!")
     
 @router.message(StateFilter(create_anc.connect))
 async def correct_connect_handler(message: Message, state: FSMContext):
     await createanc_connect(message, db, message.from_user.id, state)
 
 
-@router.message(StateFilter(create_anc.microphone))
-async def correct_microphone_handler(message: Message, state: FSMContext):
-    await createanc_microphone(message, db, message.from_user.id, state)
-
-
+@router.callback_query(StateFilter(create_anc.microphone), F.data.in_(["есть", "отсутствует"]))
+async def correct_microphone_handler(callback: CallbackQuery, state: FSMContext):
+    await createanc_microphone(callback, db, callback.from_user.id, state)
 
 @router.message(StateFilter(create_anc.games))
 async def correct_games_handler(message: Message, state: FSMContext):
@@ -117,3 +113,15 @@ async def editanc(message: Message):
 async def search(message: Message):
     await message.answer("В разработке")
     # await search_message(db, message)
+
+@router.message(Command("admin"))
+async def admin(message: Message):
+    await admin_panel(message, db)
+
+@router.callback_query(F.data.in_("clear_db"))
+async def admin(callback: CallbackQuery):
+    await clear_db(callback, db)
+
+@router.callback_query(F.data.in_("lobby"))
+async def admin(callback: CallbackQuery):
+    await start_message(db, callback)

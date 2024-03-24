@@ -7,10 +7,11 @@ class database():
 
     def __init__(self):
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS users (
+                number INTEGER PRIMARY KEY AUTOINCREMENT,
                 uid INTEGER, 
                 username TEXT,
                 age INTEGER,
-                sex TEXT,
+                gender TEXT,
                 connect TEXT,
                 microphone TEXT,
                 description TEXT,            
