@@ -12,11 +12,14 @@ from keyboards import reply
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from utils.dicts import *
+
 
 
 
 router = Router()
-user_dict: dict[int, dict[str, str | int | bool]] = {}  
+
+
 
 
 # Стартовая панель
@@ -38,8 +41,14 @@ async def cancel_accept(message: Message, state: FSMContext):
 # Начало создания анкеты и перевод на нужную машину состояний
 @router.message(Command("createanc"), StateFilter(default_state))
 async def createanc_handler(message: Message, state: FSMContext):
-    await message.answer("Отлично! Давай начнем с банального. Введи свое имя или никнейм.")
-    await state.set_state(create_anc.name)
+    db.cursor.execute("SELECT description FROM users WHERE uid = ?", (message.from_user.id,))
+    desc = db.cursor.fetchone()[0]
+    if desc == "none":
+        await message.answer("Отлично! Давай начнем с банального. Введи свое имя или никнейм.")
+        await state.set_state(create_anc.name)
+    else:
+        await message.answer("У Вас уже есть анкета. Если вы хотите изменить свою анкету, воспользуйтесь командой /editanc")
+        await state.clear()
     
 # Проверка на корректность имени и перевод на ввод возраста 
 @router.message(StateFilter(create_anc.name), F.text.isalpha())
@@ -102,8 +111,8 @@ async def rules(message: Message):
                 
 
 @router.message(Command("editanc"), StateFilter(default_state))
-async def editanc(message: Message):
-    await message.answer("В разработке")
+async def editanc_handler(message: Message):
+    await message.answer("Выберите нужное действие", reply_markup = inline.edit_anc())
 
 @router.message(Command("myanc"), StateFilter(default_state))
 async def editanc(message: Message):
@@ -111,8 +120,8 @@ async def editanc(message: Message):
 
 @router.message(Command("search"))
 async def search(message: Message):
-    await message.answer("В разработке")
-    # await search_message(db, message)
+    #await callback.message.answer("В разработке")
+    await search_random_user(message, db)
 
 @router.message(Command("admin"))
 async def admin(message: Message):
@@ -120,8 +129,51 @@ async def admin(message: Message):
 
 @router.callback_query(F.data.in_("clear_db"))
 async def admin(callback: CallbackQuery):
-    await clear_db(callback, db)
+    await db.clear_db(callback, db)
 
 @router.callback_query(F.data.in_("lobby"))
 async def admin(callback: CallbackQuery):
-    await start_message(db, callback)
+    await start_message(callback, db)
+
+@router.callback_query(F.data.in_("add_user"))
+async def admin(callback: CallbackQuery):
+    await db.add_user(callback)
+
+@router.callback_query(F.data.in_("change_desc"), StateFilter(default_state))
+async def edit_ancet(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Напишите новое описание или напиши /cancel для отмены редактирования.")
+    await state.set_state(edit_anc_state.description)
+
+@router.message(StateFilter(edit_anc_state.description))
+async def edit_ancet_description(message: Message, state: FSMContext):
+    await state.update_data(description = message.text)
+    db.cursor.execute(f"UPDATE users SET description = ? WHERE uid = ?", (message.text, message.from_user.id))
+    await message.answer("Описание обновлено!")
+    await state.clear()
+
+@router.callback_query(F.data.in_("change_game"), StateFilter(default_state))
+async def edit_ancet(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Напишите название игры или напиши /cancel для отмены редактирования.")
+    await state.set_state(edit_anc_state.game)
+
+@router.message(StateFilter(edit_anc_state.game))
+async def edit_ancet_description(message: Message, state: FSMContext):
+    await state.update_data(game = message.text)
+    db.cursor.execute(f"UPDATE users SET games = ? WHERE uid = ?", (message.text, message.from_user.id))
+    await message.answer("Название игры обновлено!")
+    await state.clear()
+
+async def edit_ancet(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Напишите новые данные для связи с Вами или напиши /cancel для отмены редактирования.")
+    await state.set_state(edit_anc_state.game)
+
+@router.message(StateFilter(edit_anc_state.game))
+async def edit_ancet_description(message: Message, state: FSMContext):
+    await state.update_data(connect = message.text)
+    db.cursor.execute(f"UPDATE users SET connect = ? WHERE uid = ?", (message.text, message.from_user.id))
+    await message.answer("Данные для связи обновлены!")
+    await state.clear()
+
+@router.message(Command("donate"))
+async def donate(message: Message):
+    await message.answer(desc.donate)

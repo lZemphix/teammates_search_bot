@@ -41,16 +41,16 @@ async def createanc_age(message, database, uid, state):
 async def createanc_gender(callback, database, uid, state):
     await state.update_data(gender = callback.data)    
     await callback.message.delete()
-    await callback.message.answer("А теперь вставь ссылку для контакта, чтобы у других была возможность связаться с тобой. Рекомендуется указывать ссылку в формате https:// и желательно, чтобы это был дискорд.")
+    await callback.message.answer("А теперь укажи, как с тобой можно связаться. Например (Nickname - дискорд)")
     await state.set_state(states.create_anc.connect)
 
 async def createanc_connect(message, database, uid, state):
     await state.update_data(connect = message.text)
-    await message.answer("А теперь введи назавание игры, (Одной!! в дальнейшем ты можешь поменять ее) для которой хочешь найти тиммейтов. Рекомендуется писать название на английском.")
+    await message.answer("А теперь введи название одной игры, по которой ищешь тиммейтов. Желательно указывать с маленькой буквы и на английском языке")
     await state.set_state(states.create_anc.games)
    
 async def createanc_games(message, database, uid, state):
-    await state.update_data(games = message.text)
+    await state.update_data(games = message.text.lower())
     await message.answer("А теперь, выбери, есть ли у тебя микрофон", reply_markup = inline.micro())
     await state.set_state(states.create_anc.microphone)
 
@@ -89,15 +89,15 @@ async def my_anc(message, database, uid):
     micro = database.cursor.fetchone()[0]
     database.cursor.execute("SELECT description FROM users WHERE uid = ?", (uid,))
     descr = database.cursor.fetchone()[0]
-    await message.answer(f"""Моя анкета:
+    await message.answer(f"""📧Ваша анкета:
                          
-Никнейм: {user_name}
-Возраст: {age}
-Пол: {gender}
-Связь: {connect}
-Игры: {games}
-Микрофон: {micro}
-Описание: {descr} """)
+👤Никнейм: {user_name}
+🎂Возраст: {age} лет
+👫Пол: {gender}
+📞Связь: {connect}
+🕹Игры: {games}
+🎤Микрофон: {micro}
+📃Описание: {descr} """)
 
 
 
@@ -107,12 +107,42 @@ async def admin_panel(callback, database):
     else:
         await callback.answer(f"""Отказано в доступе!""")
 
-async def clear_db(callback, database):
-    database.cursor.execute("DELETE FROM users")
-    database.db.commit()
-    await callback.answer(f"""База очищена!""", reply_markup = inline.lobby())
 
-
-
-
+async def search_random_user(message, database):
+    from random import randint
+    database.cursor.execute("SELECT games FROM users WHERE uid = ?", (message.from_user.id,))
+    game = database.cursor.fetchone()[0]
+    database.cursor.execute("SELECT * FROM users WHERE games = ? ORDER BY RANDOM() LIMIT 1", (game.lower(),))
+    random_user = database.cursor.fetchone()
+    user_name = random_user[2]
+    age = random_user[3]
+    gender = random_user[4]
+    connect = random_user[5]
+    games = random_user[8]
+    micro = random_user[6]
+    descr = random_user[7]
+    if random_user[1] == message.from_user.id:
+        await message.answer(f"""📧Анкета пользователя:
+                            
+    👤Никнейм: {user_name}
+    🎂Возраст: {age} лет
+    👫Пол: {gender}
+    📞Связь: {connect}
+    🕹Игра: {games}
+    🎤Микрофон: {micro}
+    📃Описание: {descr} 
+    
+❗❗Это ваша анкета. Если кроме нее вы не видите других анкет, значит пользователей, играющие в данную игру в данный помент отсутсвуют. 
+Также, убедитесь что вы указали правильное название игры!❗❗"""
+)
+    else:
+        await message.answer(f"""📧Анкета пользователя:
+                            
+    👤Никнейм: {user_name}
+    🎂Возраст: {age} лет
+    👫Пол: {gender}
+    📞Связь: {connect}
+    🕹Игра: {games}
+    🎤Микрофон: {micro}
+    📃Описание: {descr} """)
 

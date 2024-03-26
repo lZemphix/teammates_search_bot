@@ -13,3 +13,10 @@ class create_anc(StatesGroup):
     games = State()
     microphone = State()
     description = State()
+
+
+class edit_anc_state(StatesGroup):
+    description = State()
+    game = State()
+    connect = State()
+    delete = State()
