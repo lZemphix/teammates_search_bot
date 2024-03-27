@@ -48,7 +48,7 @@ def next():
 def edit_anc():
     change_desc = InlineKeyboardButton(text = "Изменить описание", callback_data="change_desc")
     change_game = InlineKeyboardButton(text = "Изменить игру", callback_data="change_game")
-    change_connect = InlineKeyboardButton(text = "Изменить ссылку на связь", callback_data="change_connect")
+    change_connect = InlineKeyboardButton(text = "Изменить данные для связи", callback_data="change_connect")
     delete = InlineKeyboardButton(text = "Удалить анкету", callback_data="delete")
     next = InlineKeyboardMarkup(inline_keyboard = [[change_desc],
                                                    [change_game],

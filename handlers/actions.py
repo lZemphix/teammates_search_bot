@@ -3,6 +3,7 @@ from utils import states
 import sqlite3
 from data import desc
 from data.config import UID
+import asyncio
 admin_uids = [] 
 admin_uids = UID
 
@@ -12,7 +13,7 @@ async def start_message(database, message):
     if database.cursor.execute(f"SELECT * FROM users WHERE uid = {message.from_user.id}").fetchone():
         pass
     else:
-        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, active_timer, ban_days) VALUES ({message.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 0,'none', 'none', 15, 0)") #number ,uid, username,age, gender, connect, microphone
+        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, active_timer, ban_days) VALUES ({message.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 60, 0)") #number ,uid, username,age, gender, connect, microphone
         #desc, games, active_timer, ban_days 
         database.db.commit()
 
@@ -112,7 +113,7 @@ async def search_random_user(message, database):
     from random import randint
     database.cursor.execute("SELECT games FROM users WHERE uid = ?", (message.from_user.id,))
     game = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT * FROM users WHERE games = ? ORDER BY RANDOM() LIMIT 1", (game.lower(),))
+    database.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game.lower(), message.from_user.id,))
     random_user = database.cursor.fetchone()
     user_name = random_user[2]
     age = random_user[3]
@@ -121,22 +122,7 @@ async def search_random_user(message, database):
     games = random_user[8]
     micro = random_user[6]
     descr = random_user[7]
-    if random_user[1] == message.from_user.id:
-        await message.answer(f"""📧Анкета пользователя:
-                            
-    👤Никнейм: {user_name}
-    🎂Возраст: {age} лет
-    👫Пол: {gender}
-    📞Связь: {connect}
-    🕹Игра: {games}
-    🎤Микрофон: {micro}
-    📃Описание: {descr} 
-    
-❗❗Это ваша анкета. Если кроме нее вы не видите других анкет, значит пользователей, играющие в данную игру в данный помент отсутсвуют. 
-Также, убедитесь что вы указали правильное название игры!❗❗"""
-)
-    else:
-        await message.answer(f"""📧Анкета пользователя:
+    await message.answer(f"""📧Анкета пользователя:
                             
     👤Никнейм: {user_name}
     🎂Возраст: {age} лет

@@ -35,7 +35,7 @@ async def incorrect_cancel(message: Message, state: FSMContext):
 # Отмена действия и выход из любой машины состояний
 @router.message(Command("cancel"), ~StateFilter(default_state))
 async def cancel_accept(message: Message, state: FSMContext):
-    await message.answer("Вы отменили создание анкеты!")
+    await message.answer("Вы отменили действие!")
     await state.clear()
 
 # Начало создания анкеты и перевод на нужную машину состояний
@@ -51,14 +51,9 @@ async def createanc_handler(message: Message, state: FSMContext):
         await state.clear()
     
 # Проверка на корректность имени и перевод на ввод возраста 
-@router.message(StateFilter(create_anc.name), F.text.isalpha())
+@router.message(StateFilter(create_anc.name))
 async def createanc_name_handler(message: Message, state: FSMContext):
     await createanc_name(message, db, message.from_user.id, state)
-
-# если имя некорректное
-@router.message(StateFilter(create_anc.name))
-async def incorrect_name(message: Message):
-    await message.answer("Введено некорректное имя!")  
 
 # Проверка на корректность возраста и перевод на ввод пола
 @router.message(StateFilter(create_anc.age), lambda x: x.text.isdigit() and 4 <= int(x.text) <= 100)
@@ -112,11 +107,21 @@ async def rules(message: Message):
 
 @router.message(Command("editanc"), StateFilter(default_state))
 async def editanc_handler(message: Message):
-    await message.answer("Выберите нужное действие", reply_markup = inline.edit_anc())
+    db.cursor.execute("SELECT username FROM users WHERE uid = ?", (message.from_user.id,))
+    username = db.cursor.fetchone()[0]
+    if username == "unknown":
+        await message.answer("У Вас еще нет анкеты, которую можно было бы редактировать! Чтобы создать анкету, воспользуйтесь командой /createanc")
+    else:
+        await message.answer("Выберите нужное действие", reply_markup = inline.edit_anc())
 
 @router.message(Command("myanc"), StateFilter(default_state))
 async def editanc(message: Message):
-    await my_anc(message, db, message.from_user.id)
+    db.cursor.execute("SELECT username FROM users WHERE uid = ?", (message.from_user.id,))
+    username = db.cursor.fetchone()[0]
+    if username == "unknown":
+        await message.answer("У Вас еще нет анкеты для просмотра! Чтобы создать анкету, воспользуйтесь командой /createanc")
+    else:
+        await my_anc(message, db, message.from_user.id)
 
 @router.message(Command("search"))
 async def search(message: Message):
@@ -143,6 +148,7 @@ async def admin(callback: CallbackQuery):
 async def edit_ancet(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("Напишите новое описание или напиши /cancel для отмены редактирования.")
     await state.set_state(edit_anc_state.description)
+    await callback.message.delete()
 
 @router.message(StateFilter(edit_anc_state.description))
 async def edit_ancet_description(message: Message, state: FSMContext):
@@ -155,6 +161,7 @@ async def edit_ancet_description(message: Message, state: FSMContext):
 async def edit_ancet(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("Напишите название игры или напиши /cancel для отмены редактирования.")
     await state.set_state(edit_anc_state.game)
+    await callback.message.delete()
 
 @router.message(StateFilter(edit_anc_state.game))
 async def edit_ancet_description(message: Message, state: FSMContext):
@@ -163,15 +170,35 @@ async def edit_ancet_description(message: Message, state: FSMContext):
     await message.answer("Название игры обновлено!")
     await state.clear()
 
+@router.callback_query(F.data.in_("change_connect"), StateFilter(default_state))
 async def edit_ancet(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("Напишите новые данные для связи с Вами или напиши /cancel для отмены редактирования.")
     await state.set_state(edit_anc_state.game)
+    await callback.message.delete()
+
 
 @router.message(StateFilter(edit_anc_state.game))
 async def edit_ancet_description(message: Message, state: FSMContext):
     await state.update_data(connect = message.text)
     db.cursor.execute(f"UPDATE users SET connect = ? WHERE uid = ?", (message.text, message.from_user.id))
     await message.answer("Данные для связи обновлены!")
+    await state.clear()
+
+@router.callback_query(F.data.in_("delete"), StateFilter(default_state))
+async def edit_ancet(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Вы уверены что хотите удалить свою анкету? Напишите 'Да' для подтверждения или /cancel для отмены.")
+    await state.set_state(edit_anc_state.delete)
+    await callback.message.delete()
+
+
+@router.message(StateFilter(edit_anc_state.delete))
+async def edit_ancet_description(message: Message, state: FSMContext):
+    await state.update_data(answer = message.text)
+    if message.text.lower() == "да":
+        db.cursor.execute(f"UPDATE users SET username = 'unknown', age = 0, gender = 'unknown', connect = 'none', microphone = 'unknown', description = 'none', games = 'none' WHERE uid = ?", (message.from_user.id,))
+        await message.answer("Данные для связи обновлены!")
+    else:
+        await message.answer("Я не понял что Вы написали, поэтому я отменил удаление анкеты.")
     await state.clear()
 
 @router.message(Command("donate"))
