@@ -110,25 +110,34 @@ async def admin_panel(callback, database):
 
 
 async def search_random_user(message, database):
-    from random import randint
     database.cursor.execute("SELECT games FROM users WHERE uid = ?", (message.from_user.id,))
     game = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game.lower(), message.from_user.id,))
+    database.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game, message.from_user.id,))
     random_user = database.cursor.fetchone()
-    user_name = random_user[2]
-    age = random_user[3]
-    gender = random_user[4]
-    connect = random_user[5]
-    games = random_user[8]
-    micro = random_user[6]
-    descr = random_user[7]
-    await message.answer(f"""📧Анкета пользователя:
-                            
-    👤Никнейм: {user_name}
-    🎂Возраст: {age} лет
-    👫Пол: {gender}
-    📞Связь: {connect}
-    🕹Игра: {games}
-    🎤Микрофон: {micro}
-    📃Описание: {descr} """)
+    if random_user is None:
+        await message.answer("К сожалению, не нашлось людей, играющих в данную игру :(")
+    else:
+        user_name = random_user[2]
+        age = random_user[3]
+        gender = random_user[4]
+        connect = random_user[5]
+        games = random_user[8]
+        micro = random_user[6]
+        descr = random_user[7]
+        await message.answer(f"""📧Анкета пользователя:
+                                
+👤Никнейм: {user_name}
+🎂Возраст: {age} лет
+👫Пол: {gender}
+📞Связь: {connect}
+🕹Игра: {games}
+🎤Микрофон: {micro}
+📃Описание: {descr} """)
 
+async def ban_check(database, message):
+    database.cursor.execute("SELECT ban FROM users WHERE uid = ?", (message.from_user.id,))
+    ban_days = database.cursor.fetchone()[0]
+    if ban_days >= 1:
+        message.answer(f"Вы заблокированны в системе на {ban_days} дней!")
+    else:
+        pass

@@ -31,8 +31,10 @@ def micro():
 def admin_panel():
     clear_db_button = InlineKeyboardButton(text = "Очистить базу данных", callback_data="clear_db")
     add_user_button = InlineKeyboardButton(text = "Добавить пользователя", callback_data="add_user")
+    ban_user = InlineKeyboardButton(text = "бан пользователя", callback_data="ban")
     admin_panel = InlineKeyboardMarkup(inline_keyboard = [[clear_db_button], 
-                                                          [add_user_button]])
+                                                          [add_user_button],
+                                                          [ban_user]])
     return admin_panel
 
 def lobby():

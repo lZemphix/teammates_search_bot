@@ -1,7 +1,7 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery
-from aiogram import Bot
+from aiogram import Bot, BaseMiddleware
 from database.database import database as db
 from handlers.actions import *
 from keyboards import reply, inline
@@ -14,18 +14,17 @@ from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from utils.dicts import *
 
-
-
-
 router = Router()
-
-
 
 
 # Стартовая панель
 @router.message(Command("start"), StateFilter(default_state))
 async def start(message: Message):
     await start_message(db, message)
+
+@router.message(Command("donate"))
+async def donate(message: Message):
+    await message.answer(desc.donate)
 
 # Срабатывает, если пользователь вводит вне машины состояний
 @router.message(Command("cancel"), StateFilter(default_state))
@@ -166,7 +165,9 @@ async def edit_ancet(callback: CallbackQuery, state: FSMContext):
 @router.message(StateFilter(edit_anc_state.game))
 async def edit_ancet_description(message: Message, state: FSMContext):
     await state.update_data(game = message.text)
-    db.cursor.execute(f"UPDATE users SET games = ? WHERE uid = ?", (message.text, message.from_user.id))
+    db.cursor.execute("UPDATE users SET games = ? WHERE uid = ?", (message.text.lower(), message.from_user.id))
+    db.db.commit()
+    db.db.close
     await message.answer("Название игры обновлено!")
     await state.clear()
 
@@ -177,30 +178,42 @@ async def edit_ancet(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
 
 
-@router.message(StateFilter(edit_anc_state.game))
+@router.message(StateFilter(edit_anc_state.connect))
 async def edit_ancet_description(message: Message, state: FSMContext):
     await state.update_data(connect = message.text)
     db.cursor.execute(f"UPDATE users SET connect = ? WHERE uid = ?", (message.text, message.from_user.id))
+    db.db.commit()
+    db.db.close
     await message.answer("Данные для связи обновлены!")
     await state.clear()
 
 @router.callback_query(F.data.in_("delete"), StateFilter(default_state))
 async def edit_ancet(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer("Вы уверены что хотите удалить свою анкету? Напишите 'Да' для подтверждения или /cancel для отмены.")
-    await state.set_state(edit_anc_state.delete)
+    db.cursor.execute("UPDATE users SET username = 'unknown', age = 0, gender = 'unknown', connect = 'none', microphone = 'unknown', description = 'none', games = 'none' WHERE uid = ?", (callback.from_user.id,))
+    db.db.commit()
+    db.db.close
+    await callback.message.answer("Ваша анкета была удалена! Чтобы создать новую, напишите /createanc") 
     await callback.message.delete()
 
+@router.callback_query(F.data.in_("ban"), StateFilter(default_state))
+async def edit_ancet(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введи айди пользователя, которого хочешь забанить.")
+    await state.set_state(ban_state.uid)
+    
 
-@router.message(StateFilter(edit_anc_state.delete))
+@router.message(StateFilter(ban_state.uid))
 async def edit_ancet_description(message: Message, state: FSMContext):
-    await state.update_data(answer = message.text)
-    if message.text.lower() == "да":
-        db.cursor.execute(f"UPDATE users SET username = 'unknown', age = 0, gender = 'unknown', connect = 'none', microphone = 'unknown', description = 'none', games = 'none' WHERE uid = ?", (message.from_user.id,))
-        await message.answer("Данные для связи обновлены!")
-    else:
-        await message.answer("Я не понял что Вы написали, поэтому я отменил удаление анкеты.")
-    await state.clear()
+    await state.update_data(uid = message.text)
+    await message.answer("Введи ссрок в днях, на которые необходимо выдать бан.") 
+    await state.set_state(ban_state.ban_days)
 
-@router.message(Command("donate"))
-async def donate(message: Message):
-    await message.answer(desc.donate)
+@router.message(StateFilter(ban_state.ban_days))
+async def ban_days_handler(message: Message, state: FSMContext, bot: Bot):
+    await state.update_data(ban_days = message.text)
+    ban_dict["ban"] = await state.get_data()
+    db.cursor.execute(f"UPDATE users SET ban_days = ? WHERE uid = ?", (message.text, ban_dict["ban"]['uid']))
+    db.db.commit()
+    db.db.close
+    await bot.send_message(chat_id=6822091159, text=f"Анкета пользователя с id {ban_dict['ban']['uid']} забанена на {ban_dict['ban']['ban_days']} дней! /admin")
+    print(ban_dict) 
+    await state.clear()
