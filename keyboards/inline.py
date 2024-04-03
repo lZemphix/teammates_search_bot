@@ -63,6 +63,6 @@ def edit_anc():
     return next
 
 def ban():
-    ban_button = InlineKeyboardButton(text = "Забанить", callback_data="ban_ancet")
+    ban_button = InlineKeyboardButton(text = "Забанить", callback_data="ban")
     ban = InlineKeyboardMarkup(inline_keyboard = [[ban_button]])
     return ban

@@ -13,15 +13,16 @@ from utils.dicts import *
 
 router = Router()
 
+@router.message(Command("cancel"), ~StateFilter(default_state))
+async def cancel_accept(message: Message, state: FSMContext):
+    await message.answer("Вы отменили действие!")
+    await state.clear()
+    
 @router.message(Command("cancel"))
 async def incorrect_cancel(message: Message, state: FSMContext):
     await message.answer("Отменять нечего!")
 
 # Отмена действия и выход из любой машины состояний
-@router.message(Command("cancel"), ~StateFilter(default_state))
-async def cancel_accept(message: Message, state: FSMContext):
-    await message.answer("Вы отменили действие!")
-    await state.clear()
 
 # Начало создания анкеты и перевод на нужную машину состояний
 @router.message(Command("createanc"), StateFilter(default_state))
@@ -110,4 +111,4 @@ async def ban_ancet_state(message: Message, state: FSMContext):
 
 @router.message(StateFilter(ban_state.ban_days))
 async def ban_days_handler(message: Message, state: FSMContext, bot: Bot):
-    await ban_days_action(state, ban_dict, db, message, bot)
+    await ban_days_action(state, ban_dict, db, message, bot, ban_time_dict)

@@ -6,6 +6,8 @@ from data.config import UID
 import asyncio
 admin_uids = [] 
 admin_uids = UID
+import threading
+import time
 
 async def start_message(database, message):
     database()
@@ -172,11 +174,11 @@ async def my_anc(message, database, uid):
 
 
 
-async def admin_panel(callback):
-    if callback.from_user.id in UID:
-        await callback.answer(f"""Выберите нужеый вариант""", reply_markup = inline.admin_panel())
+async def admin_panel(message):
+    if message.from_user.id in UID:
+        await message.answer(f"""Выберите нужеый вариант""", reply_markup = inline.admin_panel())
     else:
-        await callback.answer(f"""Отказано в доступе!""")
+        await message.answer(f"""Отказано в доступе!""")
 
 
 async def search_random_user(message, db, uid):
@@ -206,11 +208,11 @@ async def search_random_user(message, db, uid):
 📃Описание: {descr} """, reply_markup = inline.search_buttons())
         msg_text = f"""{msg.text} 
         
-uid анкеты {r_uid}
+uid  владельца анкеты {r_uid}
 
 uid отправителя {uid}"""
         await message.delete()
-        return msg_text
+        return random_user
     
 async def ban_ancet_callback_action(callback, state, ban_state):
     await callback.message.answer("Введи айди пользователя, которого хочешь забанить.")
@@ -221,14 +223,30 @@ async def ban_ancet_action(message, state, ban_state):
     await message.answer("Введи ссрок в днях, на которые необходимо выдать бан.") 
     await state.set_state(ban_state.ban_days)
 
-async def ban_days_action(state, ban_dict, db, message, bot):
+
+async def ban_days_action(state, ban_dict, db, message, bot, ban_time_dict):
     await state.update_data(ban_days = message.text)
     ban_dict["ban"] = await state.get_data()
     db.cursor.execute(f"UPDATE users SET ban_days = ? WHERE uid = ?", (message.text, ban_dict["ban"]['uid']))
     db.db.commit()
     db.db.close
+    ban_time_dict[ban_dict["ban"]['uid']] = asyncio.create_task(unban_user(message, db, ban_dict, ban_time_dict, bot, ban_dict["ban"]['uid']))
+    print (ban_time_dict)
     await message.answer(f"Анкета пользователя с id {ban_dict['ban']['uid']} забанена на {ban_dict['ban']['ban_days']} дней! /admin")
+    await bot.send_message(chat_id=ban_dict["ban"]['uid'], text=(f"Вы были забанены на {ban_dict['ban']['ban_days']} дней в связи с нарушением правил!"))
     await bot.send_message(chat_id=6822091159, text=f"""Анкета пользователя с id {ban_dict['ban']['uid']} забанена на {ban_dict['ban']['ban_days']} дней! 
 админ: {message.from_user.first_name}
 uid {message.from_user.id}""")
     await state.clear()
+
+async def unban_user(message, db, ban_dict, ban_time_dict, bot, uid):
+    db.cursor.execute(f"SELECT ban_days FROM users WHERE uid = ?", (uid,))
+    ban_days = db.cursor.fetchone()[0]
+    await asyncio.sleep(int(ban_days) * 1)
+    del ban_time_dict[uid]
+    print(ban_time_dict)
+    db.cursor.execute(f"UPDATE users SET ban_days = 0 WHERE uid = ?", (uid,))
+    db.db.commit()
+    db.db.close
+    await bot.send_message(chat_id=uid, text=(f"Вы были разбанены. Старайтесь не нарушать правила, чтобы не получить бан!"))
+    await bot.send_message(chat_id=6822091159, text=(f"Анкета пользователя с id {uid} разбанена!"))

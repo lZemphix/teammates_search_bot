@@ -30,7 +30,7 @@ async def rules(message: Message):
 async def help(message: Message):
     await message.answer(desc.help)
 
-@router.message(Command("editanc"))
+@router.message(Command("editanc"), StateFilter(default_state))
 async def editanc_handler(message: Message):
     await editanc_action(message, db)
 
@@ -53,7 +53,7 @@ async def search(callback: CallbackQuery):
 
 @router.message(Command("admin"))
 async def admin(message: Message):
-    await admin_panel(message, db)
+    await admin_panel(message)
 
 @router.callback_query(F.data.in_("clear_db"))
 async def admin(callback: CallbackQuery):
@@ -70,10 +70,12 @@ async def admin(callback: CallbackQuery):
 @router.callback_query(F.data.in_("report"))
 async def report_system(callback: CallbackQuery, bot: Bot):
     await callback.message.answer(f"жалоба отправлена")
-    msg_text = await search_random_user(callback.message, db, callback.from_user.id)
+    msg_text = callback.message.text
+    await search_random_user(callback.message, db, callback.from_user.id)
     await bot.send_message(chat_id=6822091159, text=f"""❗❗❗Жалоба на анкету❗❗❗
                            
 {msg_text}""", reply_markup = inline.ban())
+
     
 
 
