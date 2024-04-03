@@ -42,9 +42,13 @@ def lobby():
     lobby = InlineKeyboardMarkup(inline_keyboard = [[lobby_button]])
     return lobby
 
-def next():
+def search_buttons():
     next_button = InlineKeyboardButton(text = "Далее", callback_data="next")
-    next = InlineKeyboardMarkup(inline_keyboard = [[next_button]])
+    prev_button = InlineKeyboardButton(text = "Главное меню", callback_data="prev")
+    report_button = InlineKeyboardButton(text = "Пожаловаться", callback_data="report")
+    next = InlineKeyboardMarkup(inline_keyboard = [[next_button],
+                                                   [prev_button],
+                                                   [report_button]])
     return next
 
 def edit_anc():
@@ -57,3 +61,8 @@ def edit_anc():
                                                    [change_connect],
                                                    [delete]])
     return next
+
+def ban():
+    ban_button = InlineKeyboardButton(text = "Забанить", callback_data="ban_ancet")
+    ban = InlineKeyboardMarkup(inline_keyboard = [[ban_button]])
+    return ban
