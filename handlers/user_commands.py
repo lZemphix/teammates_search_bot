@@ -57,7 +57,7 @@ async def admin(message: Message):
 
 @router.callback_query(F.data.in_("clear_db"))
 async def admin(callback: CallbackQuery):
-    await db.clear_db(callback, db)
+    await db.clear_db(callback)
 
 @router.callback_query(F.data.in_("lobby"))
 async def admin(callback: CallbackQuery):
@@ -69,13 +69,4 @@ async def admin(callback: CallbackQuery):
 
 @router.callback_query(F.data.in_("report"))
 async def report_system(callback: CallbackQuery, bot: Bot):
-    await callback.message.answer(f"жалоба отправлена")
-    msg_text = callback.message.text
-    await search_random_user(callback.message, db, callback.from_user.id)
-    await bot.send_message(chat_id=6822091159, text=f"""❗❗❗Жалоба на анкету❗❗❗
-                           
-{msg_text}""", reply_markup = inline.ban())
-
-    
-
-
+    await report_system_callback_action(callback, bot, db)

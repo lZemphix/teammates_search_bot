@@ -21,9 +21,9 @@ class database():
         self.db.commit()
         self.db.close
     @staticmethod
-    async def clear_db(self,callback):
-        self.cursor.execute("DELETE FROM users")
-        self.db.commit()
+    async def clear_db(callback):
+        database.cursor.execute("DELETE FROM users")
+        database.db.commit()
         await callback.message.answer(f"""База данных очищена!""")
         
     @staticmethod
@@ -36,6 +36,6 @@ class database():
         await callback.message.answer(f"""Новый пользователь был добавлен!""")
         
     
-            
+database()
 
     

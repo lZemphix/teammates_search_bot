@@ -5,8 +5,6 @@ from aiogram import Bot
 from database.database import database as db
 from handlers.actions import *
 from keyboards import reply, inline
-from data import desc
-from handlers.actions import *
 from utils.states import *
 from aiogram.fsm.context import FSMContext
 from utils.dicts import *

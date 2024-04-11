@@ -148,30 +148,17 @@ async def createanc_description(message, state, user_dict, db):
     db.db.commit()
 
 async def my_anc(message, database, uid):
-    database.cursor.execute("SELECT username FROM users WHERE uid = ?", (uid,))
-    user_name = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT age FROM users WHERE uid = ?", (uid,))
-    age = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT gender FROM users WHERE uid = ?", (uid,))
-    gender = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT connect FROM users WHERE uid = ?", (uid,))
-    connect = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT games FROM users WHERE uid = ?", (uid,))
-    games = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT microphone FROM users WHERE uid = ?", (uid,))
-    micro = database.cursor.fetchone()[0]
-    database.cursor.execute("SELECT description FROM users WHERE uid = ?", (uid,))
-    descr = database.cursor.fetchone()[0]
+    database.cursor.execute("SELECT * FROM users WHERE uid = ?", (uid,))
+    user_data = database.cursor.fetchone()
     await message.answer(f"""📧Ваша анкета:
                          
-👤Никнейм: {user_name}
-🎂Возраст: {age} лет
-👫Пол: {gender}
-📞Связь: {connect}
-🕹Игры: {games}
-🎤Микрофон: {micro}
-📃Описание: {descr} """)
-
+👤Никнейм: {user_data[2]}
+🎂Возраст: {user_data[3]} лет
+👫Пол: {user_data[4]}
+📞Связь: {user_data[5]}
+🕹Игры: {user_data[8]}
+🎤Микрофон: {user_data[6]}
+📃Описание: {user_data[7]} """)
 
 
 async def admin_panel(message):
@@ -180,32 +167,24 @@ async def admin_panel(message):
     else:
         await message.answer(f"""Отказано в доступе!""")
 
-
 async def search_random_user(message, db, uid):
     db.cursor.execute("SELECT games FROM users WHERE uid = ?", (uid,))
     game = db.cursor.fetchone()[0]
     db.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game, uid,))
     random_user = db.cursor.fetchone()
     if random_user is None:
-        await message.amswer("К сожалению, не нашлось людей, играющих в данную игру :(")
+        await message.answer("К сожалению, не нашлось людей, играющих в данную игру :(")
     else:
         r_uid = random_user[1]
-        user_name = random_user[2]
-        age = random_user[3]
-        gender = random_user[4]
-        connect = random_user[5]
-        games = random_user[8]
-        micro = random_user[6]
-        descr = random_user[7]
         msg = await message.answer(f"""📧Анкета пользователя:
                                 
-👤Никнейм: {user_name}
-🎂Возраст: {age} лет
-👫Пол: {gender}
-📞Связь: {connect}
-🕹Игра: {games}
-🎤Микрофон: {micro}
-📃Описание: {descr} """, reply_markup = inline.search_buttons())
+👤Никнейм: {random_user[2]}
+🎂Возраст: {random_user[3]} лет
+👫Пол: {random_user[4]}
+📞Связь: {random_user[5]}
+🕹Игра: {random_user[8]}
+🎤Микрофон: {random_user[6]}
+📃Описание: {random_user[7]} """, reply_markup = inline.search_buttons())
         msg_text = f"""{msg.text} 
         
 uid  владельца анкеты {r_uid}
@@ -230,8 +209,9 @@ async def ban_days_action(state, ban_dict, db, message, bot, ban_time_dict):
     db.cursor.execute(f"UPDATE users SET ban_days = ? WHERE uid = ?", (message.text, ban_dict["ban"]['uid']))
     db.db.commit()
     db.db.close
-    ban_time_dict[ban_dict["ban"]['uid']] = asyncio.create_task(unban_user(message, db, ban_dict, ban_time_dict, bot, ban_dict["ban"]['uid']))
-    print (ban_time_dict)
+    
+    ban_time_dict[ban_dict["ban"]['uid']] = asyncio.create_task(unban_user(db,ban_time_dict, bot, ban_dict["ban"]['uid']))
+
     await message.answer(f"Анкета пользователя с id {ban_dict['ban']['uid']} забанена на {ban_dict['ban']['ban_days']} дней! /admin")
     await bot.send_message(chat_id=ban_dict["ban"]['uid'], text=(f"Вы были забанены на {ban_dict['ban']['ban_days']} дней в связи с нарушением правил!"))
     await bot.send_message(chat_id=6822091159, text=f"""Анкета пользователя с id {ban_dict['ban']['uid']} забанена на {ban_dict['ban']['ban_days']} дней! 
@@ -239,14 +219,24 @@ async def ban_days_action(state, ban_dict, db, message, bot, ban_time_dict):
 uid {message.from_user.id}""")
     await state.clear()
 
-async def unban_user(message, db, ban_dict, ban_time_dict, bot, uid):
+async def unban_user(db,ban_time_dict, bot, uid):
     db.cursor.execute(f"SELECT ban_days FROM users WHERE uid = ?", (uid,))
     ban_days = db.cursor.fetchone()[0]
-    await asyncio.sleep(int(ban_days) * 1)
+
+    await asyncio.sleep(int(ban_days) * 1) #86000 if in days
     del ban_time_dict[uid]
-    print(ban_time_dict)
+
     db.cursor.execute(f"UPDATE users SET ban_days = 0 WHERE uid = ?", (uid,))
     db.db.commit()
     db.db.close
     await bot.send_message(chat_id=uid, text=(f"Вы были разбанены. Старайтесь не нарушать правила, чтобы не получить бан!"))
     await bot.send_message(chat_id=6822091159, text=(f"Анкета пользователя с id {uid} разбанена!"))
+
+async def report_system_callback_action(callback, bot, db):
+    await callback.message.answer(f"жалоба отправлена")
+    msg_text = f"""{callback.message.text} 
+от uid {callback.from_user.id}"""
+    await search_random_user(callback.message, db, callback.from_user.id)
+    await bot.send_message(chat_id=6822091159, text=f"""❗❗❗Жалоба на анкету❗❗❗
+                           
+{msg_text}""", reply_markup = inline.ban())
