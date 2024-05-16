@@ -24,4 +24,8 @@ class edit_anc_state(StatesGroup):
 class ban_state(StatesGroup):
     uid = State()
     ban_days = State()
-    disctipion = State()
+
+
+class report_ban(StatesGroup):
+    message = State()
+    time = State()

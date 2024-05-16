@@ -1,68 +1,75 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+class Kb_maker:
+    def __init__(self) -> None:
+        self.builder = InlineKeyboardBuilder()
 
-# О проекте
-def links():
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="Аккаунт", url="tg://resolve?domain=Zemphix"
-    )
-    builder.button(
-        text="Патч-логи", url="https://t.me/+R2OfwWrXc-04OTMy"
-    )
-    return builder.as_markup()
+    def callback_buttons(self, titles = None, callbacks = None, rows = 1, main_button = True):
+        if titles == None:
+            raise ValueError("Parameter 'titles' cannot be empty!")
+        elif callbacks == None:
+            raise ValueError("Parameter 'callbacks' cannot be empty!")
+        elif len(titles) != len(callbacks):
+            raise ValueError("'titles' and 'callbacks' lists must be of the same lenght!")
+        for title, cd in zip(titles, callbacks):
+            self.builder.button(text=title, callback_data=cd)
+        if main_button == True:
+            self.builder.button(text="Главное меню", callback_data="main")
+        return self.builder.adjust(rows).as_markup()
+    
+    def url_buttons(self, titles = None, urls = None, rows = 1, main_button = True):
+        if titles == None:
+            raise ValueError("Parameter 'titles' cannot be empty!")
+        elif urls == None:
+            raise ValueError("Parameter 'urls' cannot be empty!")
+        elif len(titles) != len(urls):
+            raise ValueError("'titles' and 'urls' lists must be of the same lenght!")
+        for title, url in zip(titles, urls):
+                self.builder.button(text=title, url=url)
+        if main_button == True:
+            self.builder.button(text="Главное меню", callback_data="main")
+        return self.builder.adjust(rows).as_markup()
+    
+    def callback_button(self, title = None, callback = None, rows = 1, main_button = True):
+        if title == None:
+            raise ValueError("Parameter 'titles' cannot be empty!")
+        elif callback == None:
+            raise ValueError("Parameter 'callbacks' cannot be empty!")
+        self.builder.button(text=title, callback_data=callback)
+        if main_button == True:
+            self.builder.button(text="Главное меню", callback_data="main")
+        return self.builder.adjust(rows).as_markup()
+    
+    def url_button(self, title = None, url = None, rows = 1, main_button = True):
+        if title == None:
+            raise ValueError("Parameter 'titles' cannot be empty!")
+        elif url == None:
+            raise ValueError("Parameter 'callbacks' cannot be empty!")
+        self.builder.button(text=title, url=url)
+        if main_button == True:
+            self.builder.button(text="Главное меню", callback_data="main")
+        return self.builder.adjust(rows).as_markup()
+
+    def main_button(self):
+        self.builder.button(text="Главное меню", callback_data='main')
+        return self.builder.as_markup()
 
 
-def gender():
-    man = InlineKeyboardButton(text = "Мужской", callback_data="мужской")
-    woman = InlineKeyboardButton(text = "Женский", callback_data="женский")
-    unknown = InlineKeyboardButton(text = "Не определился", callback_data="не определен")
-    gender = InlineKeyboardMarkup(inline_keyboard = [[man, woman], 
-                                                     [unknown]])
-    return gender
+# def game_select():
+#     cs = InlineKeyboardButton(text = "Counter-Strike 2", callback_data="cs")
+#     dota = InlineKeyboardButton(text = "Dota 2", callback_data="dota")
+#     lol = InlineKeyboardButton(text = "League of Legends", callback_data="lol")
+#     valorant = InlineKeyboardButton(text = "Valorant", callback_data="valorant")
+#     minecraft = InlineKeyboardButton(text = "Minecraft", callback_data="minecraft")
+#     pubg = InlineKeyboardButton(text = "PUBG", callback_data="pubg")
+#     fortnite = InlineKeyboardButton(text = "Fortnite", callback_data="fortnite")
+#     apex = InlineKeyboardButton(text = "Apex Legends", callback_data="apex")
+#     other = InlineKeyboardButton(text = "Другое", callback_data="other")
+#     games = InlineKeyboardMarkup(inline_keyboard = [[cs, dota],
+#                                                      [lol, valorant],
+#                                                      [minecraft, pubg],
+#                                                      [fortnite, apex],
+#                                                      [other]])
+#     return games
 
-def micro():
-    yes = InlineKeyboardButton(text = "Да", callback_data="есть")
-    no = InlineKeyboardButton(text = "Нет", callback_data="отсутствует")
-    microphone = InlineKeyboardMarkup(inline_keyboard = [[yes, no]])
-    return microphone
-
-def admin_panel():
-    clear_db_button = InlineKeyboardButton(text = "Очистить базу данных", callback_data="clear_db")
-    add_user_button = InlineKeyboardButton(text = "Добавить пользователя", callback_data="add_user")
-    ban_user = InlineKeyboardButton(text = "бан пользователя", callback_data="ban")
-    admin_panel = InlineKeyboardMarkup(inline_keyboard = [[clear_db_button], 
-                                                          [add_user_button],
-                                                          [ban_user]])
-    return admin_panel
-
-def lobby():
-    lobby_button = InlineKeyboardButton(text = "Главное меню", callback_data="main")
-    lobby = InlineKeyboardMarkup(inline_keyboard = [[lobby_button]])
-    return lobby
-
-def search_buttons():
-    next_button = InlineKeyboardButton(text = "Далее", callback_data="next")
-    prev_button = InlineKeyboardButton(text = "Главное меню", callback_data="prev")
-    report_button = InlineKeyboardButton(text = "Пожаловаться", callback_data="report")
-    next = InlineKeyboardMarkup(inline_keyboard = [[next_button],
-                                                   [prev_button],
-                                                   [report_button]])
-    return next
-
-def edit_anc():
-    change_desc = InlineKeyboardButton(text = "Изменить описание", callback_data="change_desc")
-    change_game = InlineKeyboardButton(text = "Изменить игру", callback_data="change_game")
-    change_connect = InlineKeyboardButton(text = "Изменить данные для связи", callback_data="change_connect")
-    delete = InlineKeyboardButton(text = "Удалить анкету", callback_data="delete")
-    next = InlineKeyboardMarkup(inline_keyboard = [[change_desc],
-                                                   [change_game],
-                                                   [change_connect],
-                                                   [delete]])
-    return next
-
-def ban():
-    ban_button = InlineKeyboardButton(text = "Забанить", callback_data="ban")
-    ban = InlineKeyboardMarkup(inline_keyboard = [[ban_button]])
-    return ban
