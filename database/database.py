@@ -16,14 +16,13 @@ class database:
                 microphone TEXT,
                 description TEXT,            
                 games TEXT,
-                active_timer INTEGER,
                 ban_days INTEGER)""")
         self.save()
 
     async def clear_db(self, callback):
         self.cursor.execute("DELETE FROM users")
         self.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, active_timer, ban_days) VALUES ({callback.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 60, 0)")
-        await self.save()
+        self.save()
 
         await callback.message.answer(f"""База данных очищена!""")
         
@@ -33,13 +32,15 @@ class database:
         from random import choice
         games = ['valorant', 'minecraft', 'cs2', 'dota2', 'fortnite', 'gta5', 'lol']
         gender = ['женский', 'мужской', 'не определен']
-        new_user = [randint(1000000,9999999), f"name{randint(0, 1000)}", randint(10,40), f"{choice(gender)}", "connect", f"{choice(['есть', 'отсутсвует'])}", f"описание{randint(1,100)}",f"{choice(games)}", 15, 0 ]
-        self.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, active_timer, ban_days) VALUES (?, ?, ?, ?, ?, ?,?, ?, ?, ?)",(new_user)) 
-        await self.save()
-        await callback.message.answer(
-            f"""Новый пользователь был добавлен!
-            {new_user}""")
+        new_user = [randint(1000000,9999999), f"name{randint(0, 1000)}", randint(10,40), f"{choice(gender)}", "connect", f"{choice(['есть', 'отсутсвует'])}", f"описание{randint(1,100)}",f"{choice(games)}", 0 ]
+        self.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",(new_user)) 
+        self.save()
+        await callback.message.answer(f"""Новый пользователь был добавлен!
+
+{new_user}""")
         
-    async def save(self):
+    def save(self):
         self.db.commit()
         self.db.close
+
+database().create_db()

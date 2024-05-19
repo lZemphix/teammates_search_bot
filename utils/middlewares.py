@@ -1,6 +1,6 @@
 from aiogram import BaseMiddleware
 from database.database import database
-from aiogram.types import Message, TelegramObject, User
+from aiogram.types import TelegramObject, User
 from typing import Callable, Dict, Any, Awaitable
 class banMiddleware(BaseMiddleware):
     async def __call__(

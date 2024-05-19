@@ -8,7 +8,6 @@ from utils.dicts import *
 from utils.states import *
 from data import desc
 from data.config import UID
-import asyncio
 
 admin_uids = UID
 router = Router()
@@ -20,7 +19,7 @@ async def start_message(message: Message):
     if user_exists:
         pass
     else:
-        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, active_timer, ban_days) VALUES ({message.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 60, 0)")
+        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES ({message.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 0)")
     database().save()
     
     buttons, callbacks = ['📃 Анкета', '❗ Правила', '❓ Помощь', '🔎 Поиск'],['ancet', 'rules', 'help', 'search']
@@ -29,22 +28,22 @@ async def start_message(message: Message):
         buttons.append('⚙ Админ панель')
         callbacks.append('admin')
     
-    await message.answer(f"{desc.start(message)}", reply_markup=Kb_maker().callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
-
-@router.callback_query(F.data == 'donate')
-async def donate(callback: CallbackQuery):
-    await callback.message.delete()
-    await callback.message.answer(desc.donate, reply_markup=Kb_maker().main_button())
+    await message.answer(f"""Привет, {message.from_user.first_name}! Я помогу тебе найти тиммейта на одну катку или друзей для любой игры. Выбери интересующий тебя пункт.""", reply_markup=Kb_maker().callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
 
 @router.callback_query(F.data == 'rules')
 async def rules(callback: CallbackQuery):
     await callback.message.delete()
     await callback.message.answer(desc.rules, reply_markup=Kb_maker().main_button())
-                
+
+@router.callback_query(F.data == 'donate')
+async def donate(callback: CallbackQuery):
+    await callback.message.delete()
+    await callback.message.answer(desc.donate, reply_markup=Kb_maker().main_button())
+              
 @router.callback_query(F.data == 'help')
 async def help(callback: CallbackQuery):
     await callback.message.delete()
-    await callback.message.answer(desc.help, reply_markup=Kb_maker().main_button())
+    await callback.message.answer(desc.help, reply_markup=Kb_maker().callback_button('💲 Донат', 'donate'))
 
 
 @router.callback_query(F.data == ("edit_anc"), StateFilter(default_state))
@@ -59,7 +58,7 @@ async def editanc(callback: CallbackQuery):
     await callback.message.delete()
     username = database.cursor.execute("SELECT username FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()[0]
     if username == "unknown":
-        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ", reply_markup=Kb_maker().callback_button('📃 Создать анкету','create_anc'))
+        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ",  reply_markup=Kb_maker().callback_button('📃 Создать анкету','create_anc'))
     else:
         user_data = database.cursor.execute("SELECT * FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()
         await callback.message.answer(f"""📧Ваша анкета:
@@ -76,12 +75,15 @@ async def editanc(callback: CallbackQuery):
 @router.callback_query(F.data == "search")
 async def search(callback: CallbackQuery):
     game = database.cursor.execute("SELECT games FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()[0]
-    random_user = database.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game, callback.from_user.id,)).fetchone()[0]
-    if random_user is None:
-        await callback.message.answer("К сожалению, не нашлось людей, играющих в данную игру :(")
+    if game == "none":
+        callback.message.delete()
+        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ",  reply_markup=Kb_maker().callback_button('📃 Создать анкету','create_anc'))
     else:
-        await callback.message.answer(f"""📧Анкета пользователя:
-                                
+        try:
+            random_user = database.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game, callback.from_user.id,)).fetchone()
+            if random_user:
+                await callback.message.answer(f"""📧Анкета пользователя:
+                                                                            
 👤Никнейм: {random_user[2]}
 🎂Возраст: {random_user[3]} лет
 👫Пол: {random_user[4]}
@@ -89,8 +91,14 @@ async def search(callback: CallbackQuery):
 🕹Игра: {random_user[8]}
 🎤Микрофон: {random_user[6]}
 📃Описание: {random_user[7]} """, reply_markup = Kb_maker().callback_buttons(["Далее", "Пожаловаться"], ["search",str(random_user[1])]))
-        await callback.message.delete()
-        database().save()
+                await callback.message.delete()
+                database().save()
+            else:
+                await callback.message.answer("К сожалению, не нашлось людей, играющих в данную игру :(")
+
+        except TypeError:
+            await callback.message.answer("К сожалению, не нашлось людей, играющих в данную игру :(") 
+            # print("NoneType error")
 
 @router.callback_query(F.data == "main")
 async def main(callback: CallbackQuery):
@@ -99,24 +107,19 @@ async def main(callback: CallbackQuery):
     if database.cursor.execute(f"SELECT * FROM users WHERE uid = {callback.from_user.id}").fetchone():
         pass
     else:
-        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, active_timer, ban_days) VALUES ({callback.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 60, 0)")  
-    buttons,callbacks = ["📃 Анкета", "❗ Правила", "❓ Помощь", "🔎 Поиск"],['ancet', 'rules', 'help', 'search']
+        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES ({callback.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 0)")  
+    buttons, callbacks = ["📃 Анкета", "❗ Правила", "❓ Помощь", "🔎 Поиск"], ['ancet', 'rules', 'help', 'search']
     if callback.from_user.id in admin_uids:
-        await callback.message.answer(f"""{desc.start(callback)}""", reply_markup=Kb_maker().callback_buttons(titles=buttons.append('⚙ Админ панель'), callbacks=callbacks.append('admin'),  rows=2))
-    else:
-        await callback.message.answer(f"""{desc.start(callback)}""", reply_markup=Kb_maker().callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
-    database().save()
-
-
+        buttons.append('⚙ Админ панель')
+        callbacks.append('admin')
+    
+    await callback.message.answer(f"""Привет, {callback.from_user.first_name}! Я помогу тебе найти тиммейта на одну катку или друзей для любой игры. Выбери интересующий тебя пункт.""", reply_markup=Kb_maker().callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
 
 @router.callback_query(F.data.regexp(r"^(\d+)$").as_("uid"))
 async def report_system(callback: CallbackQuery, bot: Bot, uid: int):
         database.cursor.execute("SELECT * FROM users WHERE uid = ?", (uid[0],))
-        database().save()
         random_user_data = database.cursor.fetchone()
-        await callback.message.delete()
-        await callback.message.answer("Жалоба отправлена!")
-        await search(callback)
+        database().save()
         await bot.send_message(chat_id =admin_uids[0], text = f"""📧Анкета пользователя:
                          
 👤Никнейм: {random_user_data[2]}
@@ -128,6 +131,8 @@ async def report_system(callback: CallbackQuery, bot: Bot, uid: int):
 📃Описание: {random_user_data[7]} 
 
 uid: `{uid[0]}`""", parse_mode='MARKDOWN', reply_markup=Kb_maker().callback_button('Забанить', 'ban_user'))
+        await callback.message.answer("Жалоба отправлена!")
+        await search(callback)
         
 @router.message(Command("cancel"), ~StateFilter(default_state))
 async def cancel_accept(message: Message, state: FSMContext):
