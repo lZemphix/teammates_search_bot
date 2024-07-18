@@ -1,6 +1,6 @@
 import sqlite3
 
-class database:
+class Users:
     name = "users.db"
     db = sqlite3.connect(name)
     cursor = db.cursor()
@@ -43,4 +43,4 @@ class database:
         self.db.commit()
         self.db.close
 
-database().create_db()
+Users().create_db()
