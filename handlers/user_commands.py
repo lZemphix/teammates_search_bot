@@ -1,66 +1,72 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery
-from database.database import database
+from database.database import Users
 from keyboards.inline import *
 from aiogram.fsm.context import FSMContext
 from utils.dicts import *
 from utils.states import *
 from data import desc
-from data.config import UID
+from dotenv import load_dotenv
+import os, pathlib
 
-admin_uids = UID
+dotenv_path = pathlib.Path('data/.env')
+load_dotenv(dotenv_path=dotenv_path)
+
+admin_uids = os.getenv('ADMINS_UID').replace(" ", "").split(",")
 router = Router()
+keyboard = Kb_maker()
+db = Users()
 
 @router.message(Command("start"), StateFilter(default_state))
 async def start_message(message: Message):
-    database().create_db()
-    user_exists = database.cursor.execute(f"SELECT * FROM users WHERE uid = {message.from_user.id}").fetchone()
+    db.create_db()
+    user_exists = Users.cursor.execute(f"SELECT * FROM users WHERE uid = {message.from_user.id}").fetchone()
     if user_exists:
         pass
     else:
-        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES ({message.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 0)")
-    database().save()
+        Users.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES ({message.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 0)")
+    db.save()
     
     buttons, callbacks = ['📃 Анкета', '❗ Правила', '❓ Помощь', '🔎 Поиск'],['ancet', 'rules', 'help', 'search']
     
-    if message.from_user.id in admin_uids:
+    if str(message.from_user.id) in admin_uids:
         buttons.append('⚙ Админ панель')
         callbacks.append('admin')
     
-    await message.answer(f"""Привет, {message.from_user.first_name}! Я помогу тебе найти тиммейта на одну катку или друзей для любой игры. Выбери интересующий тебя пункт.""", reply_markup=Kb_maker().callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
+    await message.answer(f"""Привет, {message.from_user.first_name}! Я помогу тебе найти тиммейта на одну катку или друзей для любой игры. Выбери интересующий тебя пункт.""", reply_markup=keyboard.callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
 
 @router.callback_query(F.data == 'rules')
 async def rules(callback: CallbackQuery):
     await callback.message.delete()
-    await callback.message.answer(desc.rules, reply_markup=Kb_maker().main_button())
+    await callback.message.answer(desc.rules, reply_markup=keyboard.main_button())
 
 @router.callback_query(F.data == 'donate')
 async def donate(callback: CallbackQuery):
     await callback.message.delete()
-    await callback.message.answer(desc.donate, reply_markup=Kb_maker().main_button())
+    await callback.message.answer(desc.donate, reply_markup=keyboard.main_button())
               
 @router.callback_query(F.data == 'help')
 async def help(callback: CallbackQuery):
     await callback.message.delete()
-    await callback.message.answer(desc.help, reply_markup=Kb_maker().callback_button('💲 Донат', 'donate'))
+    await callback.message.answer(desc.help, reply_markup=keyboard.callback_button('💲 Донат', 'donate'))
 
 
 @router.callback_query(F.data == ("edit_anc"), StateFilter(default_state))
 async def edit_ancet(callback: CallbackQuery):
     await callback.message.delete()
-    await callback.message.answer("Выберите нужное действие", reply_markup = Kb_maker().callback_buttons(
+    await callback.message.answer("Выберите нужное действие", reply_markup = keyboard.callback_buttons(
         titles=["Изменить описание", "Изменить игру", "Изменить данные для связи", "Удалить анкету"],
         callbacks=["change_desc", "change_game", "change_connect", "delete_ancet"]))
 
 @router.callback_query(F.data == "ancet")
 async def editanc(callback: CallbackQuery):
     await callback.message.delete()
-    username = database.cursor.execute("SELECT username FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()[0]
+    username = Users.cursor.execute("SELECT username FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()[0]
     if username == "unknown":
-        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ",  reply_markup=Kb_maker().callback_button('📃 Создать анкету','create_anc'))
+        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ",  reply_markup=keyboard.callback_button('📃 Создать анкету','create_anc'))
     else:
-        user_data = database.cursor.execute("SELECT * FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()
+        user_data = Users.cursor.execute("SELECT * FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()
         await callback.message.answer(f"""📧Ваша анкета:
                          
 👤Никнейм: {user_data[2]}
@@ -69,18 +75,18 @@ async def editanc(callback: CallbackQuery):
 📞Связь: {user_data[5]}
 🕹Игра: {user_data[8]}
 🎤Микрофон: {user_data[6]}
-📃Описание: {user_data[7]} """, reply_markup=Kb_maker().callback_button('Редактировать анкету', 'edit_anc'))
-        database().save()
+📃Описание: {user_data[7]} """, reply_markup=keyboard.callback_button('Редактировать анкету', 'edit_anc'))
+        db.save()
 
 @router.callback_query(F.data == "search")
 async def search(callback: CallbackQuery):
-    game = database.cursor.execute("SELECT games FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()[0]
+    game = Users.cursor.execute("SELECT games FROM users WHERE uid = ?", (callback.from_user.id,)).fetchone()[0]
     if game == "none":
         callback.message.delete()
-        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ",  reply_markup=Kb_maker().callback_button('📃 Создать анкету','create_anc'))
+        await callback.message.answer("У Вас еще нет анкеты! Чтобы создать анкету нажмите на '📃 Создать анкету' ",  reply_markup=keyboard.callback_button('📃 Создать анкету','create_anc'))
     else:
         try:
-            random_user = database.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game, callback.from_user.id,)).fetchone()
+            random_user = Users.cursor.execute("SELECT * FROM users WHERE games = ? AND uid != ? ORDER BY RANDOM() LIMIT 1", (game, callback.from_user.id,)).fetchone()
             if random_user:
                 await callback.message.answer(f"""📧Анкета пользователя:
                                                                             
@@ -90,9 +96,9 @@ async def search(callback: CallbackQuery):
 📞Связь: {random_user[5]}
 🕹Игра: {random_user[8]}
 🎤Микрофон: {random_user[6]}
-📃Описание: {random_user[7]} """, reply_markup = Kb_maker().callback_buttons(["Далее", "Пожаловаться"], ["search",str(random_user[1])]))
+📃Описание: {random_user[7]} """, reply_markup = keyboard.callback_buttons(["Далее", "Пожаловаться"], ["search",str(random_user[1])]))
                 await callback.message.delete()
-                database().save()
+                db.save()
             else:
                 await callback.message.answer("К сожалению, не нашлось людей, играющих в данную игру :(")
 
@@ -103,23 +109,23 @@ async def search(callback: CallbackQuery):
 @router.callback_query(F.data == "main")
 async def main(callback: CallbackQuery):
     await callback.message.delete()
-    database().create_db()
-    if database.cursor.execute(f"SELECT * FROM users WHERE uid = {callback.from_user.id}").fetchone():
+    db.create_db()
+    if Users.cursor.execute(f"SELECT * FROM users WHERE uid = {callback.from_user.id}").fetchone():
         pass
     else:
-        database.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES ({callback.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 0)")  
+        Users.cursor.execute(f"INSERT INTO users (uid, username, age, gender, connect, microphone, description, games, ban_days) VALUES ({callback.from_user.id}, 'unknown', 0, 'unknown', 'unknown', 'unknown','none', 'none', 0)")  
     buttons, callbacks = ["📃 Анкета", "❗ Правила", "❓ Помощь", "🔎 Поиск"], ['ancet', 'rules', 'help', 'search']
-    if callback.from_user.id in admin_uids:
+    if str(callback.from_user.id) in admin_uids:
         buttons.append('⚙ Админ панель')
         callbacks.append('admin')
     
-    await callback.message.answer(f"""Привет, {callback.from_user.first_name}! Я помогу тебе найти тиммейта на одну катку или друзей для любой игры. Выбери интересующий тебя пункт.""", reply_markup=Kb_maker().callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
+    await callback.message.answer(f"""Привет, {callback.from_user.first_name}! Я помогу тебе найти тиммейта на одну катку или друзей для любой игры. Выбери интересующий тебя пункт.""", reply_markup=keyboard.callback_buttons(titles=buttons, callbacks=callbacks, rows=2))
 
 @router.callback_query(F.data.regexp(r"^(\d+)$").as_("uid"))
 async def report_system(callback: CallbackQuery, bot: Bot, uid: int):
-        database.cursor.execute("SELECT * FROM users WHERE uid = ?", (uid[0],))
-        random_user_data = database.cursor.fetchone()
-        database().save()
+        Users.cursor.execute("SELECT * FROM users WHERE uid = ?", (uid[0],))
+        random_user_data = Users.cursor.fetchone()
+        db.save()
         await bot.send_message(chat_id =admin_uids[0], text = f"""📧Анкета пользователя:
                          
 👤Никнейм: {random_user_data[2]}
@@ -130,7 +136,7 @@ async def report_system(callback: CallbackQuery, bot: Bot, uid: int):
 🎤Микрофон: {random_user_data[6]}
 📃Описание: {random_user_data[7]} 
 
-uid: `{uid[0]}`""", parse_mode='MARKDOWN', reply_markup=Kb_maker().callback_button('Забанить', 'ban_user'))
+uid: `{uid[0]}`""", parse_mode='MARKDOWN', reply_markup=keyboard.callback_button('Забанить', 'ban_user'))
         await callback.message.answer("Жалоба отправлена!")
         await search(callback)
         
@@ -158,7 +164,7 @@ async def createanc_name(message: Message, state: FSMContext):
 @router.message(StateFilter(create_anc.age), lambda x: x.text.isdigit() and 6 <= int(x.text) <= 100)
 async def correct_age(message: Message, state: FSMContext):
     await state.update_data(age = message.text)
-    await message.answer("Прекрасно! Теперь, двавй определимся с твоим полом. Выбери необходимый вариарнт.", reply_markup = Kb_maker().callback_buttons(["мужской", "женский", "не опреден"],["мужской", "женский", "не опреден"], main_button=False))
+    await message.answer("Прекрасно! Теперь, двавй определимся с твоим полом. Выбери необходимый вариарнт.", reply_markup = keyboard.callback_buttons(["мужской", "женский", "не опреден"],["мужской", "женский", "не опреден"], main_button=False))
     await state.set_state(create_anc.gender)
 
 @router.message(StateFilter(create_anc.age))
@@ -185,7 +191,7 @@ async def correct_connect(message: Message, state: FSMContext):
 @router.message(StateFilter(create_anc.games))
 async def correct_games(message: Message, state: FSMContext):
     await state.update_data(games = message.text.lower())
-    await message.answer("А теперь, выбери, есть ли у тебя микрофон", reply_markup = Kb_maker().callback_buttons(["есть", "отсутствует"], ["есть", "отсутствует"], main_button=False))
+    await message.answer("А теперь, выбери, есть ли у тебя микрофон", reply_markup = keyboard.callback_buttons(["есть", "отсутствует"], ["есть", "отсутствует"], main_button=False))
     await state.set_state(create_anc.microphone)
 
 @router.callback_query(StateFilter(create_anc.microphone), F.data.in_(["есть", "отсутствует"]))
@@ -203,14 +209,14 @@ async def correct_description(message: Message, state: FSMContext):
     user_dict[uid] = await state.get_data()
     await state.clear()
     await message.answer("Ваша анкета создана! Теперь можно вести поиск тиммейтов.")
-    database.cursor.execute("UPDATE users SET username = ? WHERE uid = ?", ( user_dict[uid]['name'], uid,))
-    database.cursor.execute("UPDATE users SET age = ? WHERE uid = ?", ( user_dict[uid]['age'], uid,))
-    database.cursor.execute("UPDATE users SET gender = ? WHERE uid = ?", ( user_dict[uid]['gender'], uid,))
-    database.cursor.execute("UPDATE users SET connect = ? WHERE uid = ?", ( user_dict[uid]['connect'], uid,))
-    database.cursor.execute("UPDATE users SET microphone = ? WHERE uid = ?", ( user_dict[uid]['microphone'], uid,))
-    database.cursor.execute("UPDATE users SET games = ? WHERE uid = ?", ( ((user_dict[uid]['games']).lower()).replace(" ", ""), uid,))
-    database.cursor.execute("UPDATE users SET description = ? WHERE uid = ?", ( user_dict[uid]['description'], uid,))
-    database().save()
+    Users.cursor.execute("UPDATE users SET username = ? WHERE uid = ?", ( user_dict[uid]['name'], uid,))
+    Users.cursor.execute("UPDATE users SET age = ? WHERE uid = ?", ( user_dict[uid]['age'], uid,))
+    Users.cursor.execute("UPDATE users SET gender = ? WHERE uid = ?", ( user_dict[uid]['gender'], uid,))
+    Users.cursor.execute("UPDATE users SET connect = ? WHERE uid = ?", ( user_dict[uid]['connect'], uid,))
+    Users.cursor.execute("UPDATE users SET microphone = ? WHERE uid = ?", ( user_dict[uid]['microphone'], uid,))
+    Users.cursor.execute("UPDATE users SET games = ? WHERE uid = ?", ( ((user_dict[uid]['games']).lower()).replace(" ", ""), uid,))
+    Users.cursor.execute("UPDATE users SET description = ? WHERE uid = ?", ( user_dict[uid]['description'], uid,))
+    db.save()
     await start_message(message)
 
 @router.callback_query(F.data.in_("change_desc"), StateFilter(default_state))
@@ -222,8 +228,8 @@ async def edit_ancet(callback: CallbackQuery, state: FSMContext):
 @router.message(StateFilter(edit_anc_state.description))
 async def edit_ancet_description(message: Message, state: FSMContext):
     await state.update_data(description = message.text)
-    database.cursor.execute(f"UPDATE users SET description = ? WHERE uid = ?", (message.text, message.from_user.id))
-    database().save()
+    Users.cursor.execute(f"UPDATE users SET description = ? WHERE uid = ?", (message.text, message.from_user.id))
+    db.save()
     await message.answer("Описание обновлено!")
     await start_message(message)
     await state.clear()
@@ -237,8 +243,8 @@ async def edit_ancet_callback(callback: CallbackQuery, state: FSMContext):
 @router.message(StateFilter(edit_anc_state.game))
 async def edit_ancet_game(message: Message, state: FSMContext):
     await state.update_data(game = message.text)
-    database.cursor.execute("UPDATE users SET games = ? WHERE uid = ?", (message.text.lower().replace(" ", ""), message.from_user.id))
-    database().save()
+    Users.cursor.execute("UPDATE users SET games = ? WHERE uid = ?", (message.text.lower().replace(" ", ""), message.from_user.id))
+    db.save()
     await message.answer("Название игры обновлено!")
     await state.clear()
     await start_message(message)
@@ -254,8 +260,8 @@ async def edit_ancet(callback: CallbackQuery, state: FSMContext):
 @router.message(StateFilter(edit_anc_state.connect))
 async def edit_ancet_connect(message: Message, state: FSMContext):
     await state.update_data(connect = message.text)
-    database.cursor.execute(f"UPDATE users SET connect = ? WHERE uid = ?", (message.text, message.from_user.id))
-    database().save()
+    Users.cursor.execute(f"UPDATE users SET connect = ? WHERE uid = ?", (message.text, message.from_user.id))
+    db.save()
     await message.answer("Данные для связи обновлены!")
     await state.clear()
     await start_message(message)

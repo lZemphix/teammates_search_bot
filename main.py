@@ -1,11 +1,14 @@
-import asyncio
+import asyncio, pathlib, os
 
 from aiogram import Bot, Dispatcher
-from data.config import TOKEN
 from handlers import user_commands, admin_commands
 from utils import middlewares
+from dotenv import load_dotenv
 
-bot = Bot(TOKEN)
+dotenv_path = pathlib.Path('data/.env')
+load_dotenv(dotenv_path=dotenv_path)
+
+bot = Bot(os.getenv('BOT_TOKEN'))
 dp = Dispatcher()
 
 
